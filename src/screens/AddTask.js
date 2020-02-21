@@ -20,6 +20,13 @@ export default class AddTask extends Component {
         ...initialState
     }
 
+    save = () => {
+        const newTask = {
+            desc:this.state.desc,
+            date:this.state.date
+        }
+        this.props.onSave && this.props.onSave(newTask)
+    }
     getDatePicker = () => {
         let datePicker = <DateTimePicker value={this.state.date} onChange={(_,date) => this.setState({date, showDatePicker :false})} mode='date'/>
         const dateString = moment(this.state.date).format('ddd,D [de] MMMM [de] YYYY')
@@ -56,7 +63,7 @@ export default class AddTask extends Component {
                                 <Text style={styles.button} onPress={this.props.onCancel}>Cancelar</Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity>
+                            <TouchableOpacity onPress={this.save}>
                                 <Text style={styles.button}>Salvar</Text>
                             </TouchableOpacity>
                     </View>
