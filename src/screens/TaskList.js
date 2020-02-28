@@ -1,33 +1,34 @@
 import React, {Component} from 'react'
 import {Alert, View, Text, ImageBackground, StyleSheet, FlatList, TouchableOpacity, Platform } from 'react-native'
 import todayImage from '../../assets/imgs/today.jpg'
+import tomorrowImage from '../../assets/imgs/tomorrow.jpg'
+import weekImage from '../../assets/imgs/week.jpg'
+import monthImage from '../../assets/imgs/month.jpg'
 import commonStyles from '../commonStyles'
 import moment from 'moment'
+
+import AsyncStorage from '@react-native-community/async-storage'
 import 'moment/locale/pt-br'
 import Task from '../components/Task'
 import Icon from 'react-native-vector-icons/FontAwesome'
 
+const initialState = { 
+        showDoneTasks:true, 
+        showAddTask: false,
+        visibleTasks : [],
+        tasks: []
+    }
 
 import AddTask from './AddTask'
 export default class TaskList extends Component{
     state = {
-        showDoneTasks:true, 
-        showAddTask: false,
-        visibleTasks : [],
-        tasks: [{
-            id: Math.random(),
-            desc: 'Comprar Livro de React Native',
-            estimateAt: new Date(),
-            doneAt: new Date(),
-        }, {
-            id: Math.random(),
-            desc: 'Ler Livro de React Native',
-            estimateAt: new Date(),
-            doneAt: null,
-        }]
+        ...initialState
     }
-    componentDidMount = () => {
-        this.filterTaks()
+    componentDidMount = async () => {
+        const stateString = await AsyncStorage.getItem('tasksState')
+        const state = JSON.parse(stateString) || initialState
+        this.setState(state, this.filterTaks)
+
     }
 
     toggleFilter = () => {
@@ -43,6 +44,7 @@ export default class TaskList extends Component{
             visibleTasks = this.state.tasks.filter(pending)
         }
         this.setState({visibleTasks})
+        AsyncStorage.setItem('tasksState', JSON.stringify(this.state))
     }
 
     toggleTask = taskId => {
@@ -72,6 +74,58 @@ export default class TaskList extends Component{
         this.setState({tasks,showAddTask: false}, this.filterTaks)
     } 
 
+    deleteTask = id => {
+        const tasks = this.state.tasks.filter(task => task.id !== id)
+        this.setState({tasks}, this.filterTasks)
+    }
+
+    getImage = () => {
+        switch (this.props.daysAhead) {
+            case 0:
+                    return todayImage;
+                break;
+            
+            case 1:
+                    return tomorrowImage;
+                break;
+            
+            case 7:
+                    return weekImage;
+                break;
+            
+            case 30:
+                    return monthImage;
+                break;
+        
+            default:
+                return monthImage;
+                break;
+        }
+    }
+
+    getColor = () => {
+        switch (this.props.daysAhead) {
+            case 0:
+                    return commonStyles.colors.today;
+                break;
+            
+            case 1:
+                    return commonStyles.colors.tomorrow;
+                break;
+            
+            case 7:
+                    return commonStyles.colors.week;
+                break;
+            
+            case 30:
+                    return commonStyles.colors.month;
+                break;
+        
+            default:
+                return commonStyles.colors.month;
+                break;
+        }
+    }
     render(){
         const today = moment().locale('pt-br').format('ddd, D [de] MMMM')
         return(
@@ -79,21 +133,26 @@ export default class TaskList extends Component{
                 <AddTask isVisible={this.state.showAddTask} onCancel={() => this.setState({showAddTask:false})} onSave={this.addTask}/>
                 <ImageBackground
                     style={styles.background}
-                    source={todayImage}>
+                    source={this.getImage()}>
                         <View style={styles.iconBar}>
+
+                            <TouchableOpacity onPress={() => this.props.navigation.openDrawer()}>
+                                <Icon name='bars' />
+                            </TouchableOpacity>
+
                             <TouchableOpacity onPress={this.toggleFilter}>
                                 <Icon name={this.state.showDoneTasks ? 'eye' : 'eye-slash'} />
                             </TouchableOpacity>
                         </View>
                         <View style={styles.titleBar}>
-                            <Text style={styles.title}>Hoje</Text>
+                            <Text style={styles.title}>{this.props.title}</Text>
                             <Text style={styles.subtitle}>{today}</Text>
                         </View>
                 </ImageBackground>
                 <View style={styles.taskList}>
-                    <FlatList data={this.state.visibleTasks} keyExtractor={item => `${item.id}`} renderItem={({item}) => <Task {...item}  toggleTask={this.toggleTask}/>} />
+                    <FlatList data={this.state.visibleTasks} keyExtractor={item => `${item.id}`} renderItem={({item}) => <Task {...item}  onToggleTask={this.toggleTask} onDelete={this.deleteTask}/>}  />
                 </View>
-                <TouchableOpacity style={styles.addButton} onPress={() => this.setState({showAddTask: true})} activeOpacity={0.7}>
+                <TouchableOpacity style={[styles.addButton,{backgroundColor: this.getColor()}]} onPress={() => this.setState({showAddTask: true})} activeOpacity={0.7}>
                     <Icon name="plus" size={20} color={commonStyles.colors.secondary} /> 
                 </TouchableOpacity>
             </View>
@@ -132,7 +191,7 @@ const styles = StyleSheet.create({
     iconBar: {
         flexDirection: 'row',
         marginHorizontal: 20,
-        justifyContent:'flex-end',
+        justifyContent:'space-between',
         marginTop: Platform.OS === 'ios' ? 30 : 10
     },
     addButton:{
